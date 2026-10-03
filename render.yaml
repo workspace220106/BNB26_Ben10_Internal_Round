@@ -1,0 +1,26 @@
+# Render blueprint — deploys the API with a persistent disk for the ledger.
+# SQLite on ephemeral storage would lose every block on each redeploy, so the
+# disk is not optional here.
+services:
+  - type: web
+    name: modelledger-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_PATH
+        value: /var/data/modelledger.db
+      - key: FRONTEND_URL
+        sync: false          # set to your Vercel URL in the dashboard
+      - key: ALLOW_VERCEL_PREVIEWS
+        value: "true"
+      - key: ALLOW_DEMO_KEYS
+        value: "true"        # set false to disable the demo keypair endpoint
+    disk:
+      name: ledger
+      mountPath: /var/data
+      sizeGB: 1

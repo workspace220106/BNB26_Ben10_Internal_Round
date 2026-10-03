@@ -1,5 +1,28 @@
+# Dependencies
 node_modules/
-.env
+
+# Build output
 .next/
 dist/
 build/
+*.tsbuildinfo
+
+# Environment — real values stay local; see the .example files
+.env
+.env.local
+.env*.local
+
+# Ledger database. Regenerable with `npm run seed`, and the WAL/SHM
+# sidecars are pure churn in diffs.
+backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
+
+# Attester signing keys. These are PRIVATE KEYS — never commit them.
+backend/data/demo-keys.json
+backend/data/demo-prompts.json
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log

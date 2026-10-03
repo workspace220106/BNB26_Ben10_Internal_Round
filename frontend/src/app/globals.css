@@ -1,0 +1,548 @@
+@import "tailwindcss";
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ModelLedger — forensic console
+   ───────────────────────────────────────────────────────────────────────────
+   Design rule: the chrome is monochrome, and colour is reserved almost
+   entirely for verdicts. When nearly everything on screen is neutral grey, a
+   single green or amber mark carries real weight — which is the whole job of
+   a trust interface. Decorative colour would compete with the only signal
+   that matters.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Surfaces: near-black, very slightly cool, stepped for layering. */
+  --color-base:        #0a0b0d;
+  --color-surface:     #101214;
+  --color-surface-2:   #16191c;
+  --color-surface-3:   #1d2125;
+
+  /* Hairlines. The UI is built from rules, not shadows. */
+  --color-line:        #23272c;
+  --color-line-strong: #30353b;
+
+  /* Text ramp. */
+  --color-ink:         #e8eaed;
+  --color-ink-dim:     #9aa2ab;
+  --color-ink-faint:   #6b747d;
+  --color-ink-ghost:   #464e56;
+
+  /* Verdict palette — the only saturated colour in the system. */
+  --color-verified:    #3fb950;
+  --color-verified-dim:#1c7a2e;
+  --color-caution:     #d4a017;
+  --color-caution-dim: #8a6a0c;
+  --color-danger:      #f0533d;
+  --color-danger-dim:  #a32d1c;
+
+  /* One interactive accent, desaturated so it reads as chrome, not verdict. */
+  --color-accent:      #5b8def;
+  --color-accent-dim:  #2d4f8f;
+
+  /* Supplied by next/font in layout.tsx, with fallbacks for first paint. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+@layer base {
+  * { border-color: var(--color-line); }
+
+  html {
+    background: var(--color-base);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background: var(--color-base);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /*
+   * Faint instrument-panel grid, pinned behind everything. Barely visible by
+   * design — texture, not a pattern competing for attention.
+   *
+   * Drawn as a fixed pseudo-element rather than `background-attachment: fixed`
+   * on body: that property makes Chromium repaint the whole viewport on every
+   * scroll frame, and on this page it drops the content layer entirely, so
+   * scrolled sections render as flat black.
+   */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: var(--color-base);
+    background-image:
+      linear-gradient(var(--color-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    background-position: -1px -1px;
+    opacity: 0.55;
+  }
+
+  /* Tabular figures everywhere numbers are compared down a column. */
+  .tnum, td, th { font-variant-numeric: tabular-nums; }
+
+  ::selection { background: var(--color-accent-dim); color: var(--color-ink); }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--color-base); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border: 2px solid var(--color-base);
+    border-radius: 6px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-ink-ghost); }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+
+  /* ── Panels ──────────────────────────────────────────────────────────────
+     Sharp 4px corners, hairline borders, no glow. Instrument, not app. */
+
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+  }
+
+  .panel-raised {
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+  }
+
+  .panel-inset {
+    background: var(--color-base);
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+  }
+
+  /* Panel header strip — the label bar on a lab instrument. */
+  .panel-head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-surface-2);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  /* ── Type ────────────────────────────────────────────────────────────── */
+
+  .mono { font-family: var(--font-mono); }
+
+  .label {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+  }
+
+  /* Section rule with a label set into it. */
+  .rule {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .rule::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--color-line);
+  }
+
+  /* ── Hash chips ──────────────────────────────────────────────────────────
+     Hashes appear constantly, so they get a dedicated treatment: mono, inset,
+     and visually quieter than prose so a page full of them stays readable. */
+
+  .hash {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-ink-dim);
+    background: var(--color-base);
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    padding: 0.125rem 0.375rem;
+    white-space: nowrap;
+  }
+
+  .hash-lg {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    letter-spacing: 0.02em;
+    color: var(--color-ink-dim);
+    word-break: break-all;
+  }
+
+  /* ── Verdict system ──────────────────────────────────────────────────── */
+
+  .verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.1875rem 0.5rem;
+    border-radius: 3px;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+
+  .verdict-trusted,
+  .verdict-verified {
+    color: var(--color-verified);
+    border-color: color-mix(in srgb, var(--color-verified) 35%, transparent);
+    background: color-mix(in srgb, var(--color-verified) 10%, transparent);
+  }
+
+  .verdict-self-asserted {
+    color: var(--color-caution);
+    border-color: color-mix(in srgb, var(--color-caution) 35%, transparent);
+    background: color-mix(in srgb, var(--color-caution) 10%, transparent);
+  }
+
+  .verdict-unverifiable,
+  .verdict-not-found {
+    color: var(--color-ink-faint);
+    border-color: var(--color-line-strong);
+    background: var(--color-surface-2);
+  }
+
+  .verdict-tampered {
+    color: var(--color-danger);
+    border-color: color-mix(in srgb, var(--color-danger) 45%, transparent);
+    background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  }
+
+  /* The big result stamp — deliberately looks like something pressed onto a
+     document rather than a web badge. */
+  .stamp {
+    position: relative;
+    border: 2px solid;
+    border-radius: 4px;
+    padding: 1.5rem 1.75rem;
+    overflow: hidden;
+  }
+  .stamp::before {
+    /* Diagonal hatching, clipped inside the stamp. Reads as an official mark
+       without resorting to a literal rubber-stamp graphic. */
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      45deg,
+      currentColor 0 1px,
+      transparent 1px 11px
+    );
+    opacity: 0.05;
+    pointer-events: none;
+  }
+
+  /* ── Score readout ───────────────────────────────────────────────────── */
+
+  .score {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+
+  /* Horizontal weight bar used in the evidence table. */
+  .meter {
+    position: relative;
+    height: 4px;
+    background: var(--color-surface-3);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .meter > span {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    border-radius: 2px;
+    transition: width 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  /* ── Controls ────────────────────────────────────────────────────────── */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4375rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.5rem 0.875rem;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    white-space: nowrap;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-primary {
+    background: var(--color-ink);
+    color: var(--color-base);
+    font-weight: 600;
+  }
+  .btn-primary:hover:not(:disabled) { background: #fff; }
+
+  .btn-secondary {
+    background: var(--color-surface-2);
+    border-color: var(--color-line-strong);
+    color: var(--color-ink);
+  }
+  .btn-secondary:hover:not(:disabled) {
+    background: var(--color-surface-3);
+    border-color: var(--color-ink-ghost);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-ink-dim);
+  }
+  .btn-ghost:hover:not(:disabled) {
+    background: var(--color-surface-2);
+    color: var(--color-ink);
+  }
+
+  .btn-danger {
+    background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+    border-color: color-mix(in srgb, var(--color-danger) 40%, transparent);
+    color: var(--color-danger);
+  }
+  .btn-danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-danger) 22%, transparent);
+  }
+
+  .field {
+    width: 100%;
+    background: var(--color-base);
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    padding: 0.5rem 0.625rem;
+    font-size: 0.8125rem;
+    color: var(--color-ink);
+    transition: border-color 0.12s;
+  }
+  .field::placeholder { color: var(--color-ink-ghost); }
+  .field:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+  .field.mono { font-family: var(--font-mono); font-size: 0.75rem; }
+
+  /* Segmented control — tabs as a single instrument switch. */
+  .segmented {
+    display: inline-flex;
+    padding: 2px;
+    background: var(--color-surface-2);
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+  }
+  .segmented button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: 2px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-ink-faint);
+    transition: background 0.12s, color 0.12s;
+    cursor: pointer;
+  }
+  .segmented button:hover { color: var(--color-ink); }
+  .segmented button[data-active="true"] {
+    background: var(--color-surface-3);
+    color: var(--color-ink);
+    box-shadow: inset 0 0 0 1px var(--color-line-strong);
+  }
+
+  .dropzone {
+    border: 1px dashed var(--color-line-strong);
+    border-radius: 4px;
+    padding: 2.5rem 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    background: var(--color-base);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .dropzone:hover { border-color: var(--color-ink-ghost); }
+  .dropzone[data-active="true"] {
+    border-color: var(--color-accent);
+    border-style: solid;
+    background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+  }
+
+  /* ── Tables ──────────────────────────────────────────────────────────── */
+
+  .table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+  .table th {
+    text-align: left;
+    padding: 0.5rem 0.875rem;
+    font-family: var(--font-mono);
+    font-size: 0.625rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+    border-bottom: 1px solid var(--color-line);
+    background: var(--color-surface-2);
+    white-space: nowrap;
+  }
+  .table td {
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid var(--color-line);
+    color: var(--color-ink-dim);
+    vertical-align: middle;
+  }
+  .table tbody tr:last-child td { border-bottom: none; }
+  .table tbody tr { transition: background 0.1s; }
+  .table tbody tr:hover { background: var(--color-surface-2); }
+
+  /* Key/value rows used throughout detail panels. */
+  .kv {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.4375rem 0;
+    border-bottom: 1px solid var(--color-line);
+  }
+  .kv:last-child { border-bottom: none; }
+  .kv > dt {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-ink-faint);
+    flex-shrink: 0;
+  }
+  .kv > dd {
+    font-size: 0.8125rem;
+    color: var(--color-ink);
+    text-align: right;
+    min-width: 0;
+  }
+
+  /* ── Chain of custody ────────────────────────────────────────────────────
+     A vertical spine with nodes — reads as an evidence log. */
+
+  .custody { position: relative; padding-left: 1.5rem; }
+  .custody::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 0.5rem;
+    bottom: 0.5rem;
+    width: 1px;
+    background: var(--color-line-strong);
+  }
+  .custody-node { position: relative; padding-bottom: 1.25rem; }
+  .custody-node::before {
+    content: "";
+    position: absolute;
+    left: -1.5rem;
+    top: 0.375rem;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--color-base);
+    border: 2px solid var(--color-line-strong);
+  }
+  .custody-node[data-state="ok"]::before { border-color: var(--color-verified); }
+  .custody-node[data-state="broken"]::before { border-color: var(--color-danger); }
+  .custody-node:last-child { padding-bottom: 0; }
+
+  /* ── Feedback states ─────────────────────────────────────────────────── */
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--color-surface) 0%,
+      var(--color-surface-2) 50%,
+      var(--color-surface) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+
+  @keyframes shimmer {
+    to { background-position: -200% 0; }
+  }
+
+  /* Live indicator dot. */
+  .pulse { position: relative; }
+  .pulse::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: inherit;
+    animation: pulse 2s ease-out infinite;
+  }
+  @keyframes pulse {
+    0%   { transform: scale(1); opacity: 0.7; }
+    100% { transform: scale(2.6); opacity: 0; }
+  }
+
+  /* Scanning sweep used while a verification is in flight. */
+  .scanning {
+    position: relative;
+    overflow: hidden;
+  }
+  .scanning::after {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    width: 35%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      color-mix(in srgb, var(--color-accent) 22%, transparent),
+      transparent
+    );
+    animation: sweep 1.1s ease-in-out infinite;
+  }
+  @keyframes sweep {
+    from { transform: translateX(-120%); }
+    to   { transform: translateX(400%); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
