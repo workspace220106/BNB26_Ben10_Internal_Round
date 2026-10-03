@@ -158,6 +158,11 @@ To reset the ledger: `npm run seed -- --reset`.
 ## Architecture
 
 ```
+contracts/              Solidity contracts for on-chain provenance (AttestationLedger, ModelRegistry, TransformationGraph, TrustPolicy)
+hardhat.config.ts       Hardhat config for local node & opBNB Testnet
+sdk/                    Python SDK & CLI for generator, transformer, and verifier integration
+adversarial/            Python adversarial attack test suite
+scripts/                Contract deployment & end-to-end demo scripts
 backend/
   src/
     lib/crypto.js       SHA-256, salted hashing, Merkle trees, Ed25519 attestations
@@ -172,8 +177,7 @@ frontend/
   src/lib/api.ts        Typed API client
 ```
 
-**Stack** — Express 5 + better-sqlite3 · Next.js 16 (App Router) + Tailwind v4 ·
-Node `crypto` for all primitives (no crypto dependencies).
+**Stack** — Solidity (opBNB / Hardhat) · Python SDK · Express 5 + better-sqlite3 · Next.js 16 (App Router) + Tailwind v4 · Node `crypto` for all primitives (no external crypto dependencies).
 
 ### API
 

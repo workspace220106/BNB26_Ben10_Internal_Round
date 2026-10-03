@@ -1,0 +1,21 @@
+{
+  "name": "modelledger-contracts",
+  "version": "0.1.0",
+  "description": "On-chain provenance ledger for AI-generated content (opBNB).",
+  "private": true,
+  "scripts": {
+    "build": "hardhat compile",
+    "test": "hardhat test",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:opbnb-test": "hardhat run scripts/deploy.ts --network opbnbTestnet"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "@openzeppelin/contracts": "^5.0.2",
+    "hardhat": "^2.22.0",
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^20.11.0"
+  }
+}

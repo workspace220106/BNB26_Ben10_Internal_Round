@@ -6,6 +6,17 @@ node_modules/
 dist/
 build/
 *.tsbuildinfo
+artifacts/
+cache/
+coverage/
+typechain-types/
+deployments.json
+demo_out/
+manifests/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.venv/
 
 # Environment — real values stay local; see the .example files
 .env

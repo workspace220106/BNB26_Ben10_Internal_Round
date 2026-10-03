@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "modelledger"
+version = "0.1.0"
+description = "SDK + CLI for the ModelLedger provenance ledger."
+requires-python = ">=3.10"
+dependencies = [
+  "web3>=6.15",
+  "eth-account>=0.11",
+  "pillow>=10.0",
+  "numpy>=1.26",
+  "imagehash>=4.3",
+  "click>=8.1",
+  "requests>=2.31",
+  "cryptography>=42.0"
+]
+
+[project.optional-dependencies]
+clip = ["sentence-transformers>=2.5", "torch>=2.1"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+modelledger = "modelledger.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["modelledger*"]
