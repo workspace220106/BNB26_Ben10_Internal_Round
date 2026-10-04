@@ -287,6 +287,36 @@ export async function getBlocks(params: { page?: number; limit?: number }) {
   return data as { blocks: Block[]; pagination: { page: number; total: number; pages: number } };
 }
 
+export async function getBlockByIndex(index: number) {
+  const { data } = await api.get(`/api/ledger/blocks/${index}`);
+  return data as { block: Block; artifacts: Artifact[] };
+}
+
+export async function getDemoKeys() {
+  const { data } = await api.get('/api/attesters/demo-keys');
+  return data.demo_keys as Record<string, { attester_id: string; private_key: string }>;
+}
+
+export async function getDemoPrompts() {
+  const { data } = await api.get('/api/artifacts/demo-prompts');
+  return data.demo_prompts as Record<string, string>;
+}
+
+export async function registerCommunityKey(name: string, public_key: string) {
+  const { data } = await api.post('/api/attesters', { name, public_key });
+  return data as { attester: Attester; note: string };
+}
+
+export async function generateKeypair() {
+  const { data } = await api.post('/api/attesters/keypair');
+  return data as { public_key: string; private_key: string; fingerprint: string; note: string };
+}
+
+export async function revokeAttester(id: string) {
+  const { data } = await api.post(`/api/attesters/${id}/revoke`);
+  return data as { revoked: boolean; affected_artifacts: number; message: string };
+}
+
 export async function validateChain() {
   const { data } = await api.get('/api/ledger/validate');
   return data as { valid: boolean; total_blocks: number; issues: ChainIssue[] };
@@ -305,6 +335,11 @@ export async function runScenario(key: string) {
 export async function runAllScenarios() {
   const { data } = await api.post('/api/adversarial/run-all');
   return data as { results: ScenarioRun[]; passed: number; total: number };
+}
+
+export async function resetDemoState() {
+  const { data } = await api.post('/api/adversarial/reset');
+  return data as { ok: boolean; message: string };
 }
 
 // ─── Formatting ──────────────────────────────────────────────────────────────

@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const multer = require('multer');
 const { v4: uuid } = require('uuid');
@@ -10,6 +12,8 @@ const { appendBlock, validateChain, getBlockById, getInclusionProof } = require(
 const trust = require('../lib/trust');
 
 const router = express.Router();
+
+const DEMO_PROMPTS_PATH = path.join(__dirname, '..', '..', 'data', 'demo-prompts.json');
 
 const MAX_UPLOAD_BYTES = Number(process.env.MAX_UPLOAD_MB || 50) * 1024 * 1024;
 
@@ -166,6 +170,21 @@ router.post('/register', upload.single('file'), (req, res, next) => {
 
 router.post('/preview-trust', express.json(), (req, res) => {
   res.json(trust.previewScore(req.body || {}));
+});
+
+router.get('/demo-prompts', (req, res) => {
+  if (process.env.ALLOW_DEMO_KEYS === 'false') {
+    return res.status(403).json({ error: 'Demo features are disabled on this deployment.' });
+  }
+  if (!fs.existsSync(DEMO_PROMPTS_PATH)) {
+    return res.json({ demo_prompts: {} });
+  }
+  try {
+    const raw = fs.readFileSync(DEMO_PROMPTS_PATH, 'utf8');
+    res.json({ demo_prompts: JSON.parse(raw) });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read demo prompts.' });
+  }
 });
 
 // ─── Verification ────────────────────────────────────────────────────────────

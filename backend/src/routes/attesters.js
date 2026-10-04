@@ -17,6 +17,8 @@
  * In this deployment, provider keys are seeded by the operator.
  */
 
+const fs = require('fs');
+const path = require('path');
 const express = require('express');
 const { v4: uuid } = require('uuid');
 
@@ -25,9 +27,26 @@ const { generateKeyPair, signAttestation, verifyAttestation, sha256, attestation
 
 const router = express.Router();
 
+const DEMO_KEYS_PATH = path.join(__dirname, '..', '..', 'data', 'demo-keys.json');
+
 function fingerprint(publicKeyPem) {
   return sha256(publicKeyPem).slice(0, 32);
 }
+
+router.get('/demo-keys', (req, res) => {
+  if (process.env.ALLOW_DEMO_KEYS === 'false') {
+    return res.status(403).json({ error: 'Demo keys are disabled on this deployment.' });
+  }
+  if (!fs.existsSync(DEMO_KEYS_PATH)) {
+    return res.json({ demo_keys: {} });
+  }
+  try {
+    const raw = fs.readFileSync(DEMO_KEYS_PATH, 'utf8');
+    res.json({ demo_keys: JSON.parse(raw) });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to read demo keys.' });
+  }
+});
 
 router.get('/', (req, res) => {
   res.json({

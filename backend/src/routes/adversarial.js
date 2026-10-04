@@ -424,4 +424,18 @@ router.post('/run-all', (req, res, next) => {
   }
 });
 
+/** Reset the database back to clean seeded demo state. */
+router.post('/reset', (req, res, next) => {
+  try {
+    const { execSync } = require('child_process');
+    const path = require('path');
+    const seedScript = path.resolve(__dirname, '../seed.js');
+    execSync(`node "${seedScript}" --reset`, { stdio: 'pipe' });
+    res.json({ ok: true, message: 'Ledger reset to baseline demo state.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
+

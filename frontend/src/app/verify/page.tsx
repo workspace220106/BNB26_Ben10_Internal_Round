@@ -1,19 +1,20 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Link from 'next/link';
 import { useDropzone } from 'react-dropzone';
 import toast from 'react-hot-toast';
 import {
   Upload, Hash as HashIcon, Search, FileCheck2, ArrowRight, GitBranch,
   Lock, Blocks, CheckCircle2, AlertTriangle, HelpCircle, ShieldAlert, Eye,
+  Sparkles, Key,
 } from 'lucide-react';
 import {
-  verifyArtifact, verifyHash, provePrompt, formatBytes, formatDate, shortHash,
+  verifyArtifact, verifyHash, provePrompt, getDemoPrompts, formatBytes, formatDate, shortHash,
   type VerificationResult,
 } from '@/lib/api';
 import {
-  Panel, Verdict, Hash, KV, ScoreDial, EvidenceTable, GateList, Spinner,
+  Panel, Verdict, Hash, KV, ScoreDial, EvidenceTable, GateList, Spinner, Tabs, FadeIn,
 } from '@/components/ui';
 
 /** Copy for each verdict. The subtitles do the real explaining. */
@@ -44,12 +45,23 @@ const VERDICTS = {
   },
 } as const;
 
+const SAMPLE_HASHES = [
+  { label: 'Cityscape (OpenAI)', hash: '00c170257e1f78b0d7c8ce0476063546f1e311d13923b6474baada7be6ab3b05' },
+  { label: 'Portrait (Stability AI)', hash: '2c5356e75bcc4094c561ac55ed6d76ad048bb8e79ac05d30d16ac9b8c9d2bb24' },
+  { label: 'Music track (Meta AI)', hash: 'fd8a49e7bfe16071b106e4d335f67abd06603f51f2caae6dabfafc61935c17f2' },
+];
+
 export default function VerifyPage() {
   const [mode, setMode] = useState<'file' | 'hash'>('file');
   const [file, setFile] = useState<File | null>(null);
   const [hashInput, setHashInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VerificationResult | null>(null);
+  const [demoPrompts, setDemoPrompts] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    getDemoPrompts().then(setDemoPrompts).catch(() => {});
+  }, []);
 
   const onDrop = useCallback((accepted: File[]) => {
     if (accepted[0]) { setFile(accepted[0]); setResult(null); }
@@ -57,17 +69,17 @@ export default function VerifyPage() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, multiple: false });
 
-  const run = async () => {
+  const run = async (hashToVerify?: string) => {
     setLoading(true);
     setResult(null);
     try {
-      if (mode === 'file') {
+      if (mode === 'file' && !hashToVerify) {
         if (!file) { toast.error('Select a file first.'); return; }
         const fd = new FormData();
         fd.append('file', file);
         setResult(await verifyArtifact(fd));
       } else {
-        const h = hashInput.trim().toLowerCase();
+        const h = (hashToVerify || hashInput).trim().toLowerCase();
         if (!/^[a-f0-9]{64}$/.test(h)) {
           toast.error('Enter a 64-character hexadecimal SHA-256 hash.');
           return;
@@ -85,28 +97,33 @@ export default function VerifyPage() {
   const ready = mode === 'file' ? Boolean(file) : /^[a-f0-9]{64}$/.test(hashInput.trim().toLowerCase());
 
   return (
-    <div className="max-w-[1100px] mx-auto px-4 py-10">
+    <FadeIn className="max-w-[1100px] mx-auto px-4 py-10">
       <header className="mb-8">
-        <p className="eyebrow mb-2">Verification</p>
-        <h1 className="text-2xl font-semibold mb-2">Check an artifact against the ledger</h1>
-        <p className="text-sm text-[var(--color-ink-dim)] max-w-2xl">
-          The file is hashed in memory and the digest is compared against the ledger. The file
-          itself is never stored, and never leaves this request.
+        <div className="inline-flex items-center gap-2 mb-2 px-2.5 py-0.5 rounded bg-[var(--color-surface-2)] border border-[var(--color-line)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-accent)]" />
+          <p className="eyebrow text-[10px] text-[var(--color-accent)]">CASE INTAKE // ARTIFACT VERIFICATION</p>
+        </div>
+        <h1 className="font-display font-serif text-3xl sm:text-4xl font-normal tracking-tight mb-2">
+          Verify an artifact against the ledger
+        </h1>
+        <p className="text-sm text-[var(--color-ink-dim)] max-w-2xl leading-relaxed">
+          The file is hashed locally in memory and the SHA-256 digest is matched against the Merkle ledger.
+          The file content is never persisted on disk or transmitted beyond this request.
         </p>
       </header>
 
       {/* ── Input ───────────────────────────────────────────────────────── */}
       <Panel
-        title="Input"
+        title="Artifact Input"
         actions={
-          <div className="segmented">
-            <button data-active={mode === 'file'} onClick={() => { setMode('file'); setResult(null); }}>
-              <Upload className="w-3 h-3" /> File
-            </button>
-            <button data-active={mode === 'hash'} onClick={() => { setMode('hash'); setResult(null); }}>
-              <HashIcon className="w-3 h-3" /> Hash
-            </button>
-          </div>
+          <Tabs<'file' | 'hash'>
+            tabs={[
+              { id: 'file', label: 'File Upload', icon: Upload },
+              { id: 'hash', label: 'SHA-256 Digest', icon: HashIcon },
+            ]}
+            activeTab={mode}
+            onChange={(m) => { setMode(m); setResult(null); }}
+          />
         }
       >
         {mode === 'file' ? (
@@ -147,13 +164,26 @@ export default function VerifyPage() {
               onChange={e => { setHashInput(e.target.value); setResult(null); }}
               onKeyDown={e => { if (e.key === 'Enter' && ready) run(); }}
             />
-            <p className="text-xs text-[var(--color-ink-ghost)] mt-2">
-              Lets a verifier check a record without handling the file at all.
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <span className="text-xs text-[var(--color-ink-ghost)]">Quick samples:</span>
+              {SAMPLE_HASHES.map(s => (
+                <button
+                  key={s.label}
+                  type="button"
+                  className="btn btn-ghost text-xs px-2 py-0.5"
+                  onClick={() => {
+                    setHashInput(s.hash);
+                    run(s.hash);
+                  }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
           </div>
         )}
 
-        <button className="btn btn-primary w-full mt-4" onClick={run} disabled={loading || !ready}>
+        <button className="btn btn-primary w-full mt-4" onClick={() => run()} disabled={loading || !ready}>
           {loading ? <><Spinner /> Checking…</> : <><Search className="w-4 h-4" /> Verify provenance</>}
         </button>
       </Panel>
@@ -162,14 +192,14 @@ export default function VerifyPage() {
         <div className="panel mt-4 h-1 scanning" aria-label="Verifying" />
       )}
 
-      {result && <Result result={result} />}
-    </div>
+      {result && <Result result={result} demoPrompts={demoPrompts} />}
+    </FadeIn>
   );
 }
 
 // ─── Result ──────────────────────────────────────────────────────────────────
 
-function Result({ result }: { result: VerificationResult }) {
+function Result({ result, demoPrompts }: { result: VerificationResult; demoPrompts: Record<string, string> }) {
   const cfg = VERDICTS[result.result];
   const Icon = cfg.icon;
   const trust = result.trust;
@@ -200,6 +230,18 @@ function Result({ result }: { result: VerificationResult }) {
           )}
         </div>
       </div>
+
+      {/* Action links */}
+      {result.artifact && (
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/artifact/${result.artifact.id}`} className="btn btn-primary text-xs">
+            View full ledger record <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+          <Link href={`/derive?parent=${result.artifact.id}`} className="btn btn-secondary text-xs">
+            <GitBranch className="w-3.5 h-3.5" /> Register a derivation
+          </Link>
+        </div>
+      )}
 
       {/* Queried hash */}
       <Panel title="Queried digest">
@@ -263,7 +305,13 @@ function Result({ result }: { result: VerificationResult }) {
 
           {result.inclusion_proof && <InclusionPanel proof={result.inclusion_proof} block={result.block} />}
 
-          {result.artifact?.prompt_recorded && <PromptProof artifactId={result.artifact.id} />}
+          {result.artifact?.prompt_recorded && (
+            <PromptProof
+              artifactId={result.artifact.id}
+              filename={result.artifact.filename}
+              demoPrompt={demoPrompts[result.artifact.filename]}
+            />
+          )}
         </>
       )}
     </div>
@@ -302,11 +350,6 @@ function ArtifactPanel({ result }: { result: VerificationResult }) {
   );
 }
 
-/**
- * The Merkle inclusion proof, rendered as the sibling chain the verifier would
- * actually walk. Shown because "trust us, it's in there" is exactly what this
- * system exists to replace.
- */
 function InclusionPanel({
   proof, block,
 }: { proof: NonNullable<VerificationResult['inclusion_proof']>; block?: VerificationResult['block'] }) {
@@ -357,20 +400,25 @@ function InclusionPanel({
   );
 }
 
-/**
- * Privacy-preserving proof, made tangible: paste the original prompt and the
- * server confirms the match without ever having stored the text.
- */
-function PromptProof({ artifactId }: { artifactId: string }) {
+function PromptProof({
+  artifactId, filename, demoPrompt,
+}: {
+  artifactId: string; filename: string; demoPrompt?: string;
+}) {
   const [prompt, setPrompt] = useState('');
   const [state, setState] = useState<{ matches: boolean; message: string } | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const check = async () => {
+  const check = async (textToCheck?: string) => {
+    const text = textToCheck || prompt;
+    if (!text.trim()) return;
     setBusy(true);
     setState(null);
     try {
-      setState(await provePrompt(artifactId, prompt));
+      const res = await provePrompt(artifactId, text);
+      setState(res);
+      if (res.matches) toast.success('Prompt match confirmed!');
+      else toast.error('Prompt mismatch.');
     } catch {
       toast.error('Could not check the prompt.');
     } finally {
@@ -390,6 +438,25 @@ function PromptProof({ artifactId }: { artifactId: string }) {
         </p>
       </div>
 
+      {demoPrompt && (
+        <div className="mb-3 panel-inset p-2.5 flex items-center justify-between gap-2">
+          <div className="text-xs text-[var(--color-ink-dim)] truncate">
+            <span className="mono text-[var(--color-accent)] font-medium">Seeded prompt: </span>
+            &quot;{demoPrompt}&quot;
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary text-xs px-2 py-0.5 shrink-0"
+            onClick={() => {
+              setPrompt(demoPrompt);
+              check(demoPrompt);
+            }}
+          >
+            Auto-fill &amp; test
+          </button>
+        </div>
+      )}
+
       <textarea
         className="field resize-none h-20 mb-3"
         placeholder="Paste the original prompt to test it"
@@ -397,7 +464,7 @@ function PromptProof({ artifactId }: { artifactId: string }) {
         onChange={e => { setPrompt(e.target.value); setState(null); }}
       />
 
-      <button className="btn btn-secondary" onClick={check} disabled={busy || !prompt.trim()}>
+      <button className="btn btn-secondary" onClick={() => check()} disabled={busy || !prompt.trim()}>
         {busy ? <><Spinner /> Checking…</> : <><Lock className="w-4 h-4" /> Test prompt</>}
       </button>
 
